@@ -23,6 +23,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 /*
 ** LUA_IGMARK is a mark to ignore all before it when building the
@@ -392,7 +396,7 @@ static int lookforfunc (lua_State *L, const char *path, const char *sym) {
 
 static int ll_loadlib (lua_State *L) {
   const char *path = luaL_checkstring(L, 1);
-  const char *init = luaL_checkstring(L, 2);
+  const char *init = luaL_checkstringlast(L, 2);
   int stat = lookforfunc(L, path, init);
   if (stat == 0)  /* no errors? */
     return 1;  /* return the loaded function */
@@ -456,6 +460,7 @@ static const char *searchpath (lua_State *L, const char *name,
 
 
 static int ll_searchpath (lua_State *L) {
+  luaL_assureempty(L, 5);
   const char *f = searchpath(L, luaL_checkstring(L, 1),
                                 luaL_checkstring(L, 2),
                                 luaL_optstring(L, 3, "."),
@@ -595,7 +600,7 @@ static void findloader (lua_State *L, const char *name) {
 
 
 static int ll_require (lua_State *L) {
-  const char *name = luaL_checkstring(L, 1);
+  const char *name = luaL_checkstringlast(L, 1);
   lua_settop(L, 1);  /* LOADED table will be at index 2 */
   lua_getfield(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
   lua_getfield(L, 2, name);  /* LOADED[name] */

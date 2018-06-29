@@ -22,7 +22,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
-
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 
 /*
@@ -209,6 +212,7 @@ static int aux_close (lua_State *L) {
 static int io_close (lua_State *L) {
   if (lua_isnone(L, 1))  /* no argument? */
     lua_getfield(L, LUA_REGISTRYINDEX, IO_OUTPUT);  /* use standard output */
+  luaL_assureempty(L, 2);
   tofile(L);  /* make sure argument is an open stream */
   return aux_close(L);
 }
@@ -654,6 +658,7 @@ static int f_seek (lua_State *L) {
   FILE *f = tofile(L);
   int op = luaL_checkoption(L, 2, "cur", modenames);
   lua_Integer p3 = luaL_optinteger(L, 3, 0);
+  luaL_assureempty(L, 4);
   l_seeknum offset = (l_seeknum)p3;
   luaL_argcheck(L, (lua_Integer)offset == p3, 3,
                   "not an integer in proper range");
@@ -673,6 +678,7 @@ static int f_setvbuf (lua_State *L) {
   FILE *f = tofile(L);
   int op = luaL_checkoption(L, 2, NULL, modenames);
   lua_Integer sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
+  luaL_assureempty(L, 4);
   int res = setvbuf(f, NULL, mode[op], (size_t)sz);
   return luaL_fileresult(L, res == 0, NULL);
 }
@@ -685,6 +691,7 @@ static int io_flush (lua_State *L) {
 
 
 static int f_flush (lua_State *L) {
+  luaL_checkcount(L, 1);
   return luaL_fileresult(L, fflush(tofile(L)) == 0, NULL);
 }
 

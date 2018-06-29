@@ -24,6 +24,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 /*
 ** maximum number of captures that a pattern can do during
@@ -53,7 +57,7 @@
 
 static int str_len (lua_State *L) {
   size_t l;
-  luaL_checklstring(L, 1, &l);
+  luaL_checklstringlast(L, 1, &l);
   lua_pushinteger(L, (lua_Integer)l);
   return 1;
 }
@@ -84,7 +88,7 @@ static int str_sub (lua_State *L) {
 static int str_reverse (lua_State *L) {
   size_t l, i;
   luaL_Buffer b;
-  const char *s = luaL_checklstring(L, 1, &l);
+  const char *s = luaL_checklstringlast(L, 1, &l);
   char *p = luaL_buffinitsize(L, &b, l);
   for (i = 0; i < l; i++)
     p[i] = s[l - i - 1];
@@ -97,7 +101,7 @@ static int str_lower (lua_State *L) {
   size_t l;
   size_t i;
   luaL_Buffer b;
-  const char *s = luaL_checklstring(L, 1, &l);
+  const char *s = luaL_checklstringlast(L, 1, &l);
   char *p = luaL_buffinitsize(L, &b, l);
   for (i=0; i<l; i++)
     p[i] = tolower(uchar(s[i]));
@@ -110,7 +114,7 @@ static int str_upper (lua_State *L) {
   size_t l;
   size_t i;
   luaL_Buffer b;
-  const char *s = luaL_checklstring(L, 1, &l);
+  const char *s = luaL_checklstringlast(L, 1, &l);
   char *p = luaL_buffinitsize(L, &b, l);
   for (i=0; i<l; i++)
     p[i] = toupper(uchar(s[i]));
@@ -124,6 +128,7 @@ static int str_rep (lua_State *L) {
   const char *s = luaL_checklstring(L, 1, &l);
   lua_Integer n = luaL_checkinteger(L, 2);
   const char *sep = luaL_optlstring(L, 3, "", &lsep);
+  luaL_assureempty(L,4);
   if (n <= 0) lua_pushliteral(L, "");
   else if (l + lsep < l || l + lsep > MAXSIZE / n)  /* may overflow? */
     return luaL_error(L, "resulting string too large");
@@ -150,6 +155,7 @@ static int str_byte (lua_State *L) {
   const char *s = luaL_checklstring(L, 1, &l);
   lua_Integer posi = posrelat(luaL_optinteger(L, 2, 1), l);
   lua_Integer pose = posrelat(luaL_optinteger(L, 3, posi), l);
+  luaL_assureempty(L,4);
   int n, i;
   if (posi < 1) posi = 1;
   if (pose > (lua_Integer)l) pose = l;
@@ -190,6 +196,7 @@ static int str_dump (lua_State *L) {
   luaL_Buffer b;
   int strip = lua_toboolean(L, 2);
   luaL_checktype(L, 1, LUA_TFUNCTION);
+  luaL_assureempty(L,3);
   lua_settop(L, 1);
   luaL_buffinit(L,&b);
   if (lua_dump(L, writer, &b, strip) != 0)
@@ -652,11 +659,13 @@ static int str_find_aux (lua_State *L, int find) {
 
 
 static int str_find (lua_State *L) {
+  luaL_assureempty(L,5);
   return str_find_aux(L, 1);
 }
 
 
 static int str_match (lua_State *L) {
+  luaL_assureempty(L,4);
   return str_find_aux(L, 0);
 }
 
@@ -690,6 +699,7 @@ static int gmatch (lua_State *L) {
   size_t ls, lp;
   const char *s = luaL_checklstring(L, 1, &ls);
   const char *p = luaL_checklstring(L, 2, &lp);
+  luaL_checkcount(L, 2);
   GMatchState *gm;
   lua_settop(L, 2);  /* keep them on closure to avoid being collected */
   gm = (GMatchState *)lua_newuserdata(L, sizeof(GMatchState));
@@ -766,6 +776,7 @@ static int str_gsub (lua_State *L) {
   const char *lastmatch = NULL;  /* end of last match */
   int tr = lua_type(L, 3);  /* replacement type */
   lua_Integer max_s = luaL_optinteger(L, 4, srcl + 1);  /* max replacements */
+  luaL_assureempty(L, 5);
   int anchor = (*p == '^');
   lua_Integer n = 0;  /* replacement count */
   MatchState ms;
@@ -1416,7 +1427,7 @@ static int str_pack (lua_State *L) {
 
 static int str_packsize (lua_State *L) {
   Header h;
-  const char *fmt = luaL_checkstring(L, 1);  /* format string */
+  const char *fmt = luaL_checkstringlast(L, 1);  /* format string */
   size_t totalsize = 0;  /* accumulate total size of result */
   initheader(L, &h);
   while (*fmt != '\0') {
@@ -1479,6 +1490,7 @@ static int str_unpack (lua_State *L) {
   size_t ld;
   const char *data = luaL_checklstring(L, 2, &ld);
   size_t pos = (size_t)posrelat(luaL_optinteger(L, 3, 1), ld) - 1;
+  luaL_assureempty(L,4);
   int n = 0;  /* number of results */
   luaL_argcheck(L, pos <= ld, 3, "initial position out of string");
   initheader(L, &h);

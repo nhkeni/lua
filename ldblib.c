@@ -19,6 +19,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 /*
 ** The hook table at registry[&HOOKKEY] maps threads to their current
@@ -39,12 +43,14 @@ static void checkstack (lua_State *L, lua_State *L1, int n) {
 
 
 static int db_getregistry (lua_State *L) {
+  luaL_checkcount(L, 0);
   lua_pushvalue(L, LUA_REGISTRYINDEX);
   return 1;
 }
 
 
 static int db_getmetatable (lua_State *L) {
+  luaL_checkcount(L, 1);
   luaL_checkany(L, 1);
   if (!lua_getmetatable(L, 1)) {
     lua_pushnil(L);  /* no metatable */
@@ -57,13 +63,17 @@ static int db_setmetatable (lua_State *L) {
   int t = lua_type(L, 2);
   luaL_argcheck(L, t == LUA_TNIL || t == LUA_TTABLE, 2,
                     "nil or table expected");
+  luaL_checkcount(L, 2);
+#ifndef LUA_USE_APICOUNT
   lua_settop(L, 2);
+#endif
   lua_setmetatable(L, 1);
   return 1;  /* return 1st argument */
 }
 
 
 static int db_getuservalue (lua_State *L) {
+  luaL_checkcount(L, 1);
   if (lua_type(L, 1) != LUA_TUSERDATA)
     lua_pushnil(L);
   else
@@ -75,7 +85,10 @@ static int db_getuservalue (lua_State *L) {
 static int db_setuservalue (lua_State *L) {
   luaL_checktype(L, 1, LUA_TUSERDATA);
   luaL_checkany(L, 2);
+  luaL_checkcount(L, 2);
+#ifndef LUA_USE_APICOUNT
   lua_settop(L, 2);
+#endif
   lua_setuservalue(L, 1);
   return 1;
 }
@@ -147,6 +160,7 @@ static int db_getinfo (lua_State *L) {
   int arg;
   lua_State *L1 = getthread(L, &arg);
   const char *options = luaL_optstring(L, arg+2, "flnStu");
+  luaL_assureempty(L, 4);
   checkstack(L, L1, 3);
   if (lua_isfunction(L, arg + 1)) {  /* info about a function? */
     options = lua_pushfstring(L, ">%s", options);  /* add '>' to 'options' */
@@ -195,6 +209,7 @@ static int db_getlocal (lua_State *L) {
   lua_State *L1 = getthread(L, &arg);
   lua_Debug ar;
   const char *name;
+  luaL_assureempty(L, 4);
   int nvar = (int)luaL_checkinteger(L, arg + 2);  /* local-variable index */
   if (lua_isfunction(L, arg + 1)) {  /* function argument? */
     lua_pushvalue(L, arg + 1);  /* push function */
@@ -228,6 +243,7 @@ static int db_setlocal (lua_State *L) {
   lua_Debug ar;
   int level = (int)luaL_checkinteger(L, arg + 1);
   int nvar = (int)luaL_checkinteger(L, arg + 2);
+  luaL_assureempty(L, 5);
   if (!lua_getstack(L1, level, &ar))  /* out of range? */
     return luaL_argerror(L, arg+1, "level out of range");
   luaL_checkany(L, arg+3);
@@ -258,12 +274,16 @@ static int auxupvalue (lua_State *L, int get) {
 
 
 static int db_getupvalue (lua_State *L) {
+  luaL_checkcount(L, 2);
   return auxupvalue(L, 1);
 }
 
 
 static int db_setupvalue (lua_State *L) {
+  luaL_checkcount(L, 3);
+#ifndef LUA_USE_APICOUNT
   luaL_checkany(L, 3);
+#endif
   return auxupvalue(L, 0);
 }
 
@@ -348,6 +368,7 @@ static int db_sethook (lua_State *L) {
   int arg, mask, count;
   lua_Hook func;
   lua_State *L1 = getthread(L, &arg);
+  luaL_assureempty(L, 5);
   if (lua_isnoneornil(L, arg+1)) {  /* no hook? */
     lua_settop(L, arg+1);
     func = NULL; mask = 0; count = 0;  /* turn off hooks */
@@ -378,6 +399,7 @@ static int db_sethook (lua_State *L) {
 
 static int db_gethook (lua_State *L) {
   int arg;
+  luaL_assureempty(L, 2);
   lua_State *L1 = getthread(L, &arg);
   char buff[5];
   int mask = lua_gethookmask(L1);
@@ -400,6 +422,7 @@ static int db_gethook (lua_State *L) {
 
 
 static int db_debug (lua_State *L) {
+  luaL_checkcount(L, 0);
   for (;;) {
     char buffer[250];
     lua_writestringerror("%s", "lua_debug> ");
@@ -418,6 +441,7 @@ static int db_traceback (lua_State *L) {
   int arg;
   lua_State *L1 = getthread(L, &arg);
   const char *msg = lua_tostring(L, arg + 1);
+  luaL_assureempty(L, 4);
   if (msg == NULL && !lua_isnoneornil(L, arg + 1))  /* non-string 'msg'? */
     lua_pushvalue(L, arg + 1);  /* return it untouched */
   else {

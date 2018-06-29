@@ -20,6 +20,11 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
+
 #define MAXUNICODE	0x10FFFF
 
 #define iscont(p)	((*(p) & 0xC0) == 0x80)
@@ -74,6 +79,7 @@ static int utflen (lua_State *L) {
   const char *s = luaL_checklstring(L, 1, &len);
   lua_Integer posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
   lua_Integer posj = u_posrelat(luaL_optinteger(L, 3, -1), len);
+  luaL_assureempty(L, 4);
   luaL_argcheck(L, 1 <= posi && --posi <= (lua_Integer)len, 2,
                    "initial position out of string");
   luaL_argcheck(L, --posj < (lua_Integer)len, 3,
@@ -102,6 +108,7 @@ static int codepoint (lua_State *L) {
   const char *s = luaL_checklstring(L, 1, &len);
   lua_Integer posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
   lua_Integer pose = u_posrelat(luaL_optinteger(L, 3, posi), len);
+  luaL_assureempty(L, 4);
   int n;
   const char *se;
   luaL_argcheck(L, posi >= 1, 2, "out of range");
@@ -163,6 +170,7 @@ static int byteoffset (lua_State *L) {
   lua_Integer n  = luaL_checkinteger(L, 2);
   lua_Integer posi = (n >= 0) ? 1 : len + 1;
   posi = u_posrelat(luaL_optinteger(L, 3, posi), len);
+  luaL_assureempty(L, 4);
   luaL_argcheck(L, 1 <= posi && --posi <= (lua_Integer)len, 3,
                    "position out of range");
   if (n == 0) {
@@ -223,7 +231,7 @@ static int iter_aux (lua_State *L) {
 
 
 static int iter_codes (lua_State *L) {
-  luaL_checkstring(L, 1);
+  luaL_checkstringlast(L, 1);
   lua_pushcfunction(L, iter_aux);
   lua_pushvalue(L, 1);
   lua_pushinteger(L, 0);

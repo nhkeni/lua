@@ -18,6 +18,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 #undef PI
 #define PI	(l_mathop(3.141592653589793238462643383279502884))
@@ -37,6 +41,7 @@
 
 
 static int math_abs (lua_State *L) {
+  luaL_checkcount(L, 1);
   if (lua_isinteger(L, 1)) {
     lua_Integer n = lua_tointeger(L, 1);
     if (n < 0) n = (lua_Integer)(0u - (lua_Unsigned)n);
@@ -171,7 +176,7 @@ static int math_sqrt (lua_State *L) {
 
 static int math_ult (lua_State *L) {
   lua_Integer a = luaL_checkinteger(L, 1);
-  lua_Integer b = luaL_checkinteger(L, 2);
+  lua_Integer b = luaL_checkintegerlast(L, 2);
   lua_pushboolean(L, (lua_Unsigned)a < (lua_Unsigned)b);
   return 1;
 }
@@ -275,6 +280,7 @@ static int math_random (lua_State *L) {
 
 
 static int math_randomseed (lua_State *L) {
+  luaL_checkcount(L, 1);
   l_srand((unsigned int)(lua_Integer)luaL_checknumber(L, 1));
   (void)l_rand(); /* discard first value to avoid undesirable correlations */
   return 0;
@@ -282,6 +288,7 @@ static int math_randomseed (lua_State *L) {
 
 
 static int math_type (lua_State *L) {
+  luaL_checkcount(L, 1);
   if (lua_type(L, 1) == LUA_TNUMBER) {
       if (lua_isinteger(L, 1))
         lua_pushliteral(L, "integer");

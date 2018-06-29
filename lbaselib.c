@@ -20,6 +20,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 static int luaB_print (lua_State *L) {
   int n = lua_gettop(L);  /* number of arguments */
@@ -85,7 +89,7 @@ static int luaB_tonumber (lua_State *L) {
     size_t l;
     const char *s;
     lua_Integer n = 0;  /* to avoid warnings */
-    lua_Integer base = luaL_checkinteger(L, 2);
+    lua_Integer base = luaL_checkintegerlast(L, 2);
     luaL_checktype(L, 1, LUA_TSTRING);  /* no numbers as strings */
     s = lua_tolstring(L, 1, &l);
     luaL_argcheck(L, 2 <= base && base <= 36, 2, "base out of range");
@@ -101,6 +105,7 @@ static int luaB_tonumber (lua_State *L) {
 
 static int luaB_error (lua_State *L) {
   int level = (int)luaL_optinteger(L, 2, 1);
+  luaL_assureempty(L, 3);
   lua_settop(L, 1);
   if (lua_type(L, 1) == LUA_TSTRING && level > 0) {
     luaL_where(L, level);   /* add extra information */
@@ -112,7 +117,7 @@ static int luaB_error (lua_State *L) {
 
 
 static int luaB_getmetatable (lua_State *L) {
-  luaL_checkany(L, 1);
+  luaL_checkcount(L, 1);
   if (!lua_getmetatable(L, 1)) {
     lua_pushnil(L);
     return 1;  /* no metatable */
@@ -137,7 +142,7 @@ static int luaB_setmetatable (lua_State *L) {
 
 static int luaB_rawequal (lua_State *L) {
   luaL_checkany(L, 1);
-  luaL_checkany(L, 2);
+  luaL_checkcount(L, 2);
   lua_pushboolean(L, lua_rawequal(L, 1, 2));
   return 1;
 }
@@ -154,7 +159,7 @@ static int luaB_rawlen (lua_State *L) {
 
 static int luaB_rawget (lua_State *L) {
   luaL_checktype(L, 1, LUA_TTABLE);
-  luaL_checkany(L, 2);
+  luaL_checkcount(L, 2);
   lua_settop(L, 2);
   lua_rawget(L, 1);
   return 1;
@@ -163,7 +168,7 @@ static int luaB_rawget (lua_State *L) {
 static int luaB_rawset (lua_State *L) {
   luaL_checktype(L, 1, LUA_TTABLE);
   luaL_checkany(L, 2);
-  luaL_checkany(L, 3);
+  luaL_checkcount(L, 3);
   lua_settop(L, 3);
   lua_rawset(L, 1);
   return 1;
@@ -258,7 +263,7 @@ static int luaB_ipairs (lua_State *L) {
 #if defined(LUA_COMPAT_IPAIRS)
   return pairsmeta(L, "__ipairs", 1, ipairsaux);
 #else
-  luaL_checkany(L, 1);
+  luaL_checkcount(L, 1);
   lua_pushcfunction(L, ipairsaux);  /* iteration function */
   lua_pushvalue(L, 1);  /* state */
   lua_pushinteger(L, 0);  /* initial value */
@@ -374,6 +379,7 @@ static int luaB_assert (lua_State *L) {
     return lua_gettop(L);  /* return all arguments */
   else {  /* error */
     luaL_checkany(L, 1);  /* there must be a condition */
+    luaL_assureempty(L, 3);
     lua_remove(L, 1);  /* remove it */
     lua_pushliteral(L, "assertion failed!");  /* default message */
     lua_settop(L, 1);  /* leave only message (default if no other one) */
@@ -444,7 +450,7 @@ static int luaB_xpcall (lua_State *L) {
 
 
 static int luaB_tostring (lua_State *L) {
-  luaL_checkany(L, 1);
+  luaL_checkcount(L, 1);
   luaL_tolstring(L, 1, NULL);
   return 1;
 }

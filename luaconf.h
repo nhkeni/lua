@@ -776,8 +776,53 @@
 */
 
 
+	/* additional checks on function arguments */
+# define LUA_USE_APICOUNT
+# ifdef LUA_USE_APICOUNT
+
+/* macro version to avoid a function call */
+# define luaN_gettop(L) \
+        (cast_int(L->top - (L->ci->func + 1)))
+
+/* a constant number of arguments, so the last arg is at top */
+# define luaL_checkcount(L, c) \
+	if(luaN_gettop(L) != c) { \
+		luaL_error(L, "wrong number of arguments"); \
+	}
+
+/* Function has optional arguments, so top can't be more then some constant. */
+# define luaL_assureempty(L, c) \
+	if (luaN_gettop(L) >= c){ \
+		luaL_error(L, "wrong number of arguments"); \
+	}
+
+/* Convenience functions for adding checkcount to exist check of last arg. */
+# define luaL_checktypelast(L, c, t) \
+	luaL_checktype(L, c, t); \
+	luaL_checkcount(L, c)
+
+# define luaL_checkstringlast(L, c) \
+	luaL_checkstring(L, c); \
+	luaL_checkcount(L, c)
+
+# define luaL_checklstringlast(L, c, len) \
+	luaL_checklstring(L, c, len); \
+	luaL_checkcount(L, c)
+
+# define luaL_checkintegerlast(L, c) \
+	luaL_checkinteger(L, c); \
+	luaL_checkcount(L, c)
+
+
+#else
+# define luaL_checkcount(L, c) luaL_checkany(L, c)
+# define luaL_assureempty(L, c)
+# define luaL_checktypelast(L, c, t) luaL_checktype(L, c, t)
+# define luaL_checkstringlast(L, c) luaL_checkstring(L, c)
+# define luaL_checklstringlast(L, c, len) luaL_checklstring(L, c, len)
+# define luaL_checkintegerlast(L, c) luaL_checkinteger(L, c)
+#endif
 
 
 
 #endif
-

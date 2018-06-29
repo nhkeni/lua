@@ -19,6 +19,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_USE_APICOUNT
+# include "llimits.h"
+# include "lstate.h"
+#endif
 
 /*
 ** Operations that an object must define to mimic a table
@@ -106,6 +110,7 @@ static int tinsert (lua_State *L) {
 static int tremove (lua_State *L) {
   lua_Integer size = aux_getn(L, 1, TAB_RW);
   lua_Integer pos = luaL_optinteger(L, 2, size);
+  luaL_assureempty(L, 3);
   if (pos != size)  /* validate 'pos' if given */
     luaL_argcheck(L, 1 <= pos && pos <= size + 1, 1, "position out of bounds");
   lua_geti(L, 1, pos);  /* result = t[pos] */
@@ -130,6 +135,7 @@ static int tmove (lua_State *L) {
   lua_Integer e = luaL_checkinteger(L, 3);
   lua_Integer t = luaL_checkinteger(L, 4);
   int tt = !lua_isnoneornil(L, 5) ? 5 : 1;  /* destination table */
+  luaL_assureempty(L, 6);
   checktab(L, 1, TAB_R);
   checktab(L, tt, TAB_W);
   if (e >= f) {  /* otherwise, nothing to move */
@@ -173,6 +179,7 @@ static int tconcat (lua_State *L) {
   const char *sep = luaL_optlstring(L, 2, "", &lsep);
   lua_Integer i = luaL_optinteger(L, 3, 1);
   last = luaL_optinteger(L, 4, last);
+  luaL_assureempty(L, 5);
   luaL_buffinit(L, &b);
   for (; i < last; i++) {
     addfield(L, &b, i);
@@ -208,6 +215,7 @@ static int unpack (lua_State *L) {
   lua_Unsigned n;
   lua_Integer i = luaL_optinteger(L, 2, 1);
   lua_Integer e = luaL_opt(L, luaL_checkinteger, 3, luaL_len(L, 1));
+  luaL_assureempty(L, 4);
   if (i > e) return 0;  /* empty range */
   n = (lua_Unsigned)e - i;  /* number of elements minus 1 (avoid overflows) */
   if (n >= (unsigned int)INT_MAX  || !lua_checkstack(L, (int)(++n)))
@@ -414,6 +422,7 @@ static int sort (lua_State *L) {
     luaL_argcheck(L, n < INT_MAX, 1, "array too big");
     if (!lua_isnoneornil(L, 2))  /* is there a 2nd argument? */
       luaL_checktype(L, 2, LUA_TFUNCTION);  /* must be a function */
+    luaL_assureempty(L, 3); /* check for 3 or more arguments */
     lua_settop(L, 2);  /* make sure there are two arguments */
     auxsort(L, 1, (IdxT)n, 0);
   }
